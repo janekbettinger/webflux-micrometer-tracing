@@ -95,4 +95,23 @@ public class SampleController {
         .onErrorResume(throwable -> Mono.just(throwable.getMessage()));
   }
 
+  // ✅ as expected
+  @GetMapping("/webclient/onStatus/400/fix")
+  public Mono<Object> webClientOnStatus400Fix() {
+    LOGGER.info("Called /webclient/onStatus/400/fix");
+    return webClient.get()
+        .uri("https://httpbin.org/status/400")
+        .retrieve()
+        .onStatus(HttpStatusCode::isError, clientResponse -> {
+          LOGGER.error("Called onStatus with status code {}", clientResponse.statusCode().value());
+//          return clientResponse.bodyToMono(Object.class).map(s -> new RuntimeException("ERROR"));
+//          return clientResponse.createException();
+          return clientResponse.createException().map(s -> new RuntimeException("ERROR"));
+        })
+        .bodyToMono(Object.class)
+        .doOnNext(s -> LOGGER.info("Received {}", s))
+        .doOnError(throwable -> LOGGER.error("Error: {}", throwable.getMessage()) /* lacks tracing information */)
+        .onErrorResume(throwable -> Mono.just(throwable.getMessage()));
+  }
+
 }
